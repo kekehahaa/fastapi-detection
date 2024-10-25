@@ -16,4 +16,4 @@ def get_video_info(url):
     return video_info
     
 if __name__ == "__main__":
-    print(download_video("https://www.youtube.com/watch?v=-sLTAIqGJX8", "/Users/kekehaha/python/detection/video2photo/582858358/videos"))
+    print(download_video("https://www.youtube.com/watch?v=-sLTAIqGJX8", "o2photo/582858358/videos"))
