@@ -129,10 +129,10 @@ class VideoCutter:
         return ffmpeg.probe(self.file_path)
     
 if __name__ == "__main__":
-    file_path = "/Users/kekehaha/mirea/systeam admin/fdf/жесткий конфликт аункера с овердрайвом на медиа-лиге по контре 2 - это правда..mp4"
-    out_path = "/Users/kekehaha/python/detection/video2photo/582858358/videos/bytimecodes"
+    file_path = "диа-лиге по контре 2 - это правда..mp4"
+    out_path = ""
     video = VideoCutter(file_path)
-    video.video_to_frames("/Users/kekehaha/python/detection/video2photo/582858358/1", 2, f'video_%04d.jpg')
+    video.video_to_frames("/Users/", 2, f'video_%04d.jpg')
     # video.video_cut(out_path, 1, 6)
     # video.cut_by_duration(out_path, 1)
     # video.cut_by_parts(out_path, 15)
