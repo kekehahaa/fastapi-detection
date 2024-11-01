@@ -1,5 +1,6 @@
-import yt_dlp, os, asyncio
+import yt_dlp, asyncio, os
 
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
 def download_video_sync(url: str, output_path : str, quality: str='bestvideo[ext=mp4]'):
@@ -14,13 +15,20 @@ def download_video_sync(url: str, output_path : str, quality: str='bestvideo[ext
             Path to directory where saving videos
         quality : str
             Quality of downloading video. The default is bestvideo[ext=mp4]
-        '''
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
+    '''
+    video_file = yt_dlp.YoutubeDL().prepare_filename(get_video_info(url))
     
+    with yt_dlp.YoutubeDL() as ydl:
+        info_dict = ydl.extract_info(url, download=False)
+        video_file = ydl.prepare_filename(info_dict)
+    
+    out_path = Path(output_path) / Path(video_file).stem
+    if not out_path.exists():
+        out_path.mkdir(parents=True)
+
     ydl_opts = {
         'format': quality,
-        'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),
+        'outtmpl':  os.path.join(out_path, '%(title)s.%(ext)s'),
         'prefer_ffmpeg': True
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -39,4 +47,4 @@ def get_video_info(url):
     return video_info
     
 if __name__ == "__main__":
-    print(download_video_sync("https://www.youtube.com/watch?v=njX2bu-_Vw4", "/Users/kekehaha/python/detection/video2photo/582858358/videos"))
+    print(download_video_sync("https://www.youtube.com/watch?v=njX2bu-_Vw4", "../582858358/videos"))

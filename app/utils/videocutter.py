@@ -1,5 +1,7 @@
-import ffmpeg, os, random, shutil, string
+import ffmpeg, os, random, shutil, string, os, asyncio
 
+from ffmpeg.asyncio import FFmpeg
+from pathlib import Path
 from typing import List, Tuple
 
 class VideoCutter:
@@ -9,14 +11,14 @@ class VideoCutter:
     def __init__(self, file_path: str):
         self.file_path = file_path
         
-        if not os.path.isfile(file_path):
+        if not Path(self.file_path).is_file():
             raise FileNotFoundError(f"File {self.file_path} not found")
         
         self.file_info = self._get_video_info()
     
-    def video_to_frames(self, output_path: str, fps: int | float=1.5, save_pattern: str=f'frame_%04d.jpg'):
+    async def video_to_frames(self, output_path: str, fps: int | float=1.5, save_pattern: str=f'frame_%04d.jpg'):
         '''
-        Make frames(photos) from video
+        Cut video into photos(frames)
         
         Parameters
         ----------
@@ -27,21 +29,23 @@ class VideoCutter:
         save_pattern : str
             Pattern to save frames. The default is f'frame_%04d.jpg'
         '''
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)
+        out_path = Path(output_path)
+        if not out_path.exists():
+            out_path.mkdir(parents=True)
             
         try:
-            (
-            ffmpeg
+            process = (
+            FFmpeg()
+            .option("threads", str(os.cpu_count()))
             .input(self.file_path)
-            .output(os.path.join(output_path, save_pattern), vf=f"fps={fps}")
-            .run()
+            .output(out_path / save_pattern, vf=f"fps={fps}")
             )     
+            await process.execute()
             print(f"Frames saved: {output_path}")
         except ffmpeg.Error as e:
             print(f"Error while cutting into frames: {e}")
             
-    def video_cut(self, output_name: str, start: int | float, end: int | float):
+    async def video_cut(self, output_name: str, start: int | float, end: int | float):
         '''
         Cut video by interval from start to end
         
@@ -55,17 +59,18 @@ class VideoCutter:
             End sec to cutting
         '''
         try:
-            (
-            ffmpeg
+            process = (
+            FFmpeg()
+            .option("threads", str(os.cpu_count()))
             .input(self.file_path, ss=start, to=end)
             .output(output_name, codec="copy")
-            .run(overwrite_output=True)
             )     
+            await process.execute()
             print(f"Video saved: {output_name}")
         except ffmpeg.Error as e:
             print(f"Error while cutting video: {e}")
             
-    def cut_by_duration(self, output_path: str, duration: int | float):
+    async def cut_by_duration(self, output_path: str, duration: int | float):
         '''
         Cut video by intervals
         
@@ -76,23 +81,24 @@ class VideoCutter:
         duration : Union[int, float]
             Length to cut videos
         '''
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)   
+        out_path = Path(output_path)
+        if not out_path.exists():
+            out_path.mkdir(parents=True) 
         
         count = int(float(self.file_info['format']['duration']) // duration)
         rndm = ''.join(random.choices(string.ascii_letters, k=7))
-        _, extention = os.path.splitext(os.path.basename(self.file_path))
+        extention = Path(self.file_path).suffix
         
         if count <= 1:
             shutil.copy(self.file_path, output_path)
             return
                  
-        for i in range(count):
-            start = i * count
+        for i in range(count + 1):
+            start = i * duration
             end = start + duration
-            self.video_cut(os.path.join(output_path, f"video_{rndm}_{i}{extention}"), start, end)
+            await self.video_cut(out_path / f"video_{rndm}_{i}{extention}", start, end)
     
-    def cut_by_parts(self, output_path: str, parts: int):
+    async def cut_by_parts(self, output_path: str, parts: int):
         '''
         Parameters
         ----------
@@ -101,40 +107,42 @@ class VideoCutter:
         parts : int
             This is the number of parts you need to divide the video into
         '''
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)  
+        out_path = Path(output_path)
+        if not out_path.exists():
+            out_path.mkdir(parents=True)
         
         rndm = ''.join(random.choices(string.ascii_letters, k=7))
-        _, extention = os.path.splitext(os.path.basename(self.file_path))
+        extention = Path(self.file_path).suffix
         duration = float(self.file_info['format']['duration']) / parts
             
         for i in range(parts):
             start = i * duration
             end = start + duration
-            self.video_cut(os.path.join(output_path, f"video_{rndm}_{i}{extention}"), start, end)
+            await self.video_cut(out_path / f"video_{rndm}_{i}{extention}", start, end)
             
-    def cut_by_timecodes(self, output_path, timecodes: List[Tuple[float]]):
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)  
+    async def cut_by_timecodes(self, output_path, timecodes: List[Tuple[float]]):
+        out_path = Path(output_path)
+        if not out_path.exists():
+            out_path.mkdir(parents=True)
             
         rndm = ''.join(random.choices(string.ascii_letters, k=7))
-        _, extention = os.path.splitext(os.path.basename(self.file_path))
+        extention = Path(self.file_path).suffix
         
         i = 0
         for start, end in timecodes:
-            self.video_cut(os.path.join(output_path, f"video_{rndm}_{i}{extention}"), start, end)
+            await self.video_cut(out_path / f"video_{rndm}_{i}{extention}", start, end)
             i += 1
         
     def _get_video_info(self):
         return ffmpeg.probe(self.file_path)
     
 if __name__ == "__main__":
-    file_path = "диа-лиге по контре 2 - это правда..mp4"
-    out_path = ""
+    file_path = "../../Лекция. Сверточные нейронные сети.mp4"
+    out_path = "../../detection/web_db/video_cat"
     video = VideoCutter(file_path)
-    video.video_to_frames("/Users/", 2, f'video_%04d.jpg')
-    # video.video_cut(out_path, 1, 6)
-    # video.cut_by_duration(out_path, 1)
-    # video.cut_by_parts(out_path, 15)
-    video.cut_by_timecodes(out_path, [(11, 20)])
+    # asyncio.run(video.video_to_frames("../web_db/frames", 1/1000, f'video_%04d.jpg'))
+    # asyncio.run(video.video_cut(out_path + "1.mp4", 1, 6))
+    # asyncio.run(video.cut_by_duration(out_path, 300))
+    # asyncio.run(video.cut_by_parts(out_path, 15))
+    asyncio.run(video.cut_by_timecodes(out_path, [(11, 20), (300, 600)]))
     

@@ -1,17 +1,27 @@
-from fastapi import APIRouter, UploadFile, HTTPException
-from fastapi.responses import  FileResponse
-from fastapi import status
+from fastapi import APIRouter, UploadFile, Depends, File
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.utils.files import upload_files_user, upload_files_link
+from app.utils.files import upload_video_local, upload_video_link, cutting_into_frames
+from app.core.config import settings
+from app.db.database import get_async_session
 
-file_router = APIRouter()
 
-@file_router.post("/upload/video")
-async def upload_video_file(files: list[UploadFile]):        
-    files = await upload_files_user(files, "/Users/kekehaha/python/detection/video2photo/582858358/videos/upload_files")
-    return files   
+import app.utils.videocutter as vdc
 
-@file_router.post("/upload/bylink")
-async def upload_video_by_link(links: list[str]):
-    files = await upload_files_link(links, "/Users/kekehaha/python/detection/video2photo/582858358/videos/link")
-    return files
+
+file_router = APIRouter(prefix='/video')
+
+@file_router.post("/upload/local")
+async def proccess_upload_video_local(video_file: UploadFile, session: AsyncSession = Depends(get_async_session)):
+    file = await upload_video_local(video_file, settings.DB_PATH, session)
+    return file
+
+@file_router.get("/upload/link")
+async def upload_video_by_link(link: str, session: AsyncSession = Depends(get_async_session)):
+    file = await upload_video_link(link, settings.DB_PATH, session)
+    return file
+
+# @file_router.get("/cutter/frames")
+# async def proccess_video_to_frames(path: str, fps: float = 1.5, save_pattern: str = f'frame_%04d.jpg'):
+#     file = await cutting_into_frames(path, fps, save_pattern)
+#     return file
